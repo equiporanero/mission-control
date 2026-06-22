@@ -1,12 +1,13 @@
-"""Hermes Agent — Multi-agent hub: messaging bridge + MCP management.
+"""Hermes Agent — Multi-agent hub: real messaging bridge + MCP management.
 
 Capabilities:
-  - Messaging: Poll conversations from Telegram, Discord, Slack, WhatsApp
+  - Messaging: Poll conversations from Telegram, Discord, Slack, WhatsApp (via Hermes MCP)
   - Send messages to any connected channel
   - Route incoming messages to other agents
   - MCP Management: Browse Nous catalogue, install/uninstall, toggle, auth flow
 
 This agent is both a message router AND the MCP management control room.
+Note: Messaging ops are proxied through the dashboard API which calls Hermes MCP.
 """
 
 from __future__ import annotations
@@ -19,8 +20,8 @@ if TYPE_CHECKING:
 
 MANIFEST = {
     "name": "hermes",
-    "version": "0.2.0",
-    "description": "Multi-agent hub — messaging bridge + MCP catalogue management",
+    "version": "0.3.0",
+    "description": "Multi-agent hub — real Hermes MCP bridge + MCP catalogue management",
     "capabilities": [
         "messaging",
         "channels",

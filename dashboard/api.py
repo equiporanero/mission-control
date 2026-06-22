@@ -19,6 +19,7 @@ from config.settings import DB_PATH, AGENTS_DIR, DASHBOARD_HOST, DASHBOARD_PORT
 from core.memory import Memory
 from core.registry import Registry
 from core.mcp_manager import MCPManager
+from core.hermes_bridge import HermesBridge
 
 app = FastAPI(title="Mission Control")
 memory = Memory(DB_PATH)
@@ -101,66 +102,57 @@ async def create_task(request: Request):
     return {"task_id": task_id}
 
 
-# ── Hermes Bridge (proxies to Hermes MCP via CLI) ──
+# ── Hermes Bridge (real MCP integration) ──
 
-def _hermes_mcp(tool: str, args: dict) -> dict:
-    """Call a Hermes MCP tool via the hermes CLI (stdio protocol)."""
-    try:
-        cmd = ["hermes", "mcp", "call", tool, json.dumps(args)]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
-        if result.returncode == 0 and result.stdout.strip():
-            return json.loads(result.stdout.strip())
-        return {"error": result.stderr.strip() or "empty response", "raw": result.stdout[:500]}
-    except subprocess.TimeoutExpired:
-        return {"error": "timeout"}
-    except FileNotFoundError:
-        return {"error": "hermes CLI not found"}
-    except Exception as e:
-        return {"error": str(e)}
+hermes = HermesBridge()
+
+
+@app.get("/api/hermes/status")
+async def hermes_status():
+    return {"mcp_available": hermes.mcp_available, "hint": "Run: hermes mcp serve"}
 
 
 @app.get("/api/hermes/channels")
 async def hermes_channels(platform: str | None = None):
-    args = {}
-    if platform:
-        args["platform"] = platform
-    return _hermes_mcp("channels_list", args)
+    result = hermes.channels_list(platform)
+    memory.emit("hermes", "channels_listed", {"platform": platform or "all"})
+    return result
 
 
 @app.get("/api/hermes/conversations")
 async def hermes_conversations(platform: str | None = None, limit: int = 20, search: str | None = None):
-    args = {"limit": limit}
-    if platform:
-        args["platform"] = platform
-    if search:
-        args["search"] = search
-    return _hermes_mcp("conversations_list", args)
+    result = hermes.conversations_list(platform, limit, search)
+    if "error" not in result:
+        memory.emit("hermes", "conversations_listed", {"count": len(result.get("conversations", []))})
+    return result
 
 
 @app.get("/api/hermes/messages/{session_key}")
 async def hermes_messages(session_key: str, limit: int = 30):
-    return _hermes_mcp("messages_read", {"session_key": session_key, "limit": limit})
+    result = hermes.messages_read(session_key, limit)
+    if "error" not in result:
+        memory.emit("hermes", "messages_read", {"session": session_key, "count": len(result.get("messages", []))})
+    return result
 
 
 @app.post("/api/hermes/send")
 async def hermes_send(request: Request):
     body = await request.json()
-    result = _hermes_mcp("messages_send", {
-        "target": body["target"],
-        "message": body["message"],
-    })
-    memory.emit("hermes", "message_sent", {"target": body["target"], "preview": body["message"][:100]})
+    result = hermes.messages_send(body["target"], body["message"])
+    if "error" not in result:
+        memory.emit("hermes", "message_sent", {"target": body["target"], "preview": body["message"][:100]})
     return result
 
 
 @app.get("/api/hermes/events")
 async def hermes_events(after_cursor: int = 0, limit: int = 20):
-    return _hermes_mcp("events_poll", {"after_cursor": after_cursor, "limit": limit})
+    result = hermes.events_poll(after_cursor, None, limit)
+    return result
 
 
 @app.get("/api/hermes/permissions")
 async def hermes_permissions():
-    return _hermes_mcp("permissions_list_open", {})
+    return hermes.permissions_list_open()
 
 
 # ── Claude Agent Control ──

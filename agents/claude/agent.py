@@ -6,12 +6,14 @@ Capabilities:
   - Optionally reply back through Hermes
 
 Reads API key from shared memory (namespace __secrets__) or env var.
+Uses OpenRouter API for multi-model access.
 """
 
 from __future__ import annotations
 
 import asyncio
 import os
+import json
 from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -19,8 +21,8 @@ if TYPE_CHECKING:
 
 MANIFEST = {
     "name": "claude",
-    "version": "0.1.0",
-    "description": "LLM processing — generates responses via Claude API",
+    "version": "0.2.0",
+    "description": "LLM processing — real Claude via OpenRouter or Anthropic",
     "capabilities": ["llm", "process_message", "generate", "summarize", "reply"],
     "color": "purple",
     "icon": "◆",
@@ -79,7 +81,8 @@ async def run(ctx: "AgentContext", task: dict) -> Any:
 
 
 def _get_model(ctx: "AgentContext") -> str:
-    return ctx.recall("model") or DEFAULT_MODEL
+    stored = ctx.memory.get("__secrets__", "claude_model")
+    return stored or DEFAULT_MODEL
 
 
 def _get_api_key(ctx: "AgentContext") -> str | None:
@@ -90,32 +93,48 @@ def _get_api_key(ctx: "AgentContext") -> str | None:
 
 
 async def _call_llm(ctx: "AgentContext", message: str) -> str:
-    """Call LLM via OpenRouter (httpx). Falls back to mock if no API key."""
+    """Call LLM via OpenRouter. Falls back to mock if no API key."""
     api_key = _get_api_key(ctx)
 
     if not api_key:
         ctx.logger.info("No API key configured — returning mock response")
-        await asyncio.sleep(0.2)
-        return f"[mock] Processed: {message[:100]}..."
+        await asyncio.sleep(0.5)
+        return f"[Mock response from Claude]\n\nYou asked: {message[:80]}...\n\n[To use real Claude, set OPENROUTER_API_KEY env var or configure via dashboard]"
 
     try:
         import httpx
     except ImportError:
         ctx.logger.warning("httpx not installed — returning mock response")
-        return f"[mock-no-httpx] {message[:100]}..."
+        return f"[Mock — httpx not available] {message[:100]}..."
 
     model = _get_model(ctx)
     url = "https://openrouter.ai/api/v1/chat/completions"
 
-    async with httpx.AsyncClient(timeout=60) as client:
-        resp = await client.post(url, json={
-            "model": model,
-            "messages": [{"role": "user", "content": message}],
-            "max_tokens": 1024,
-        }, headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        })
-        resp.raise_for_status()
-        data = resp.json()
-        return data["choices"][0]["message"]["content"]
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(url, json={
+                "model": model,
+                "messages": [{"role": "user", "content": message}],
+                "max_tokens": 1024,
+            }, headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://mission-control.local",
+                "X-Title": "Mission Control Agentic OS",
+            })
+
+            if resp.status_code != 200:
+                ctx.logger.error("OpenRouter error: %d %s", resp.status_code, resp.text[:200])
+                return f"[LLM Error {resp.status_code}] Check your API key and quota"
+
+            data = resp.json()
+            if "error" in data:
+                ctx.logger.error("API error: %s", data["error"])
+                return f"[API Error] {data['error'].get('message', 'Unknown error')}"
+
+            return data["choices"][0]["message"]["content"]
+    except asyncio.TimeoutError:
+        return "[Timeout] LLM request took too long. Try again."
+    except Exception as e:
+        ctx.logger.error("LLM call failed: %s", e)
+        return f"[Error] {str(e)[:100]}"

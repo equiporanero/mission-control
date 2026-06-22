@@ -27,8 +27,27 @@ Local multi-agent orchestrator with dual control panel for Hermes (messaging bri
 ```bash
 pip install -r requirements.txt
 python run_dashboard.py
-# Open http://127.0.0.1:8550
+# Open http://127.0.0.1:8560
 ```
+
+## Connecting Claude (LLM)
+
+Set your OpenRouter API key:
+
+```bash
+export OPENROUTER_API_KEY="sk-or-..."
+# Or configure via dashboard: Claude panel → Configuration → Paste API key
+```
+
+## Connecting Hermes (Messaging)
+
+In a separate terminal:
+
+```bash
+hermes mcp serve
+```
+
+This connects to your Telegram, Discord, Slack, WhatsApp, etc. accounts. Then in the dashboard, Hermes tab will show live conversations and allow you to send messages.
 
 ## Orchestrator
 
