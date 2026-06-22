@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mission Control — Agentic OS</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-0: #08080d;
+  --bg-1: #0e0e16;
+  --bg-2: #161620;
+  --bg-3: #1e1e2c;
+  --bg-4: #262638;
+  --border: #2a2a3c;
+  --border-s: #1a1a2a;
+  --t0: #f0f0f5;
+  --t1: #b0b0c0;
+  --t2: #6a6a80;
+  --cyan: #00e5ff;
+  --green: #00e676;
+  --purple: #b388ff;
+  --orange: #ff9100;
+  --red: #ff5252;
+  --pink: #ff4081;
+  --gcyan: rgba(0,229,255,0.12);
+  --ggreen: rgba(0,230,118,0.12);
+  --gpurple: rgba(179,136,255,0.12);
+  --r: 12px;
+  --rs: 8px;
+  --f: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --m: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+}
+
+body { font-family: var(--f); background: var(--bg-0); color: var(--t0); min-height: 100vh; display: flex; }
+
+/* ── Sidebar ── */
+.sb { width: 210px; min-height: 100vh; background: var(--bg-1); border-right: 1px solid var(--border-s); padding: 20px 0; display: flex; flex-direction: column; position: fixed; top: 0; left: 0; z-index: 10; }
+.sb-brand { padding: 0 18px 20px; border-bottom: 1px solid var(--border-s); margin-bottom: 14px; }
+.sb-brand h1 { font-size: 10px; font-weight: 600; color: var(--t2); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 2px; }
+.sb-brand .name { font-size: 20px; font-weight: 700; background: linear-gradient(135deg, var(--cyan), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.sb-sec { padding: 0 10px; margin-bottom: 16px; }
+.sb-label { font-size: 9px; font-weight: 600; color: var(--t2); letter-spacing: 1.5px; text-transform: uppercase; padding: 0 8px; margin-bottom: 4px; }
+.sb-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: var(--rs); color: var(--t1); font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+.sb-item:hover { background: var(--bg-2); color: var(--t0); }
+.sb-item.active { background: var(--bg-3); color: var(--t0); }
+.dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.d-cyan { background: var(--cyan); box-shadow: 0 0 6px var(--cyan); }
+.d-green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.d-purple { background: var(--purple); box-shadow: 0 0 6px var(--purple); }
+.d-orange { background: var(--orange); box-shadow: 0 0 6px var(--orange); }
+.d-off { background: #444; }
+.sb-foot { margin-top: auto; padding: 14px 18px; border-top: 1px solid var(--border-s); font-size: 10px; color: var(--t2); font-family: var(--m); }
+
+/* ── Main ── */
+.main { margin-left: 210px; flex: 1; padding: 28px 36px; min-height: 100vh; }
+
+/* ── Header ── */
+.hdr { margin-bottom: 28px; }
+.hdr-top { display: flex; align-items: center; justify-content: space-between; }
+.hdr-lbl { font-size: 10px; font-weight: 600; color: var(--t2); letter-spacing: 2px; text-transform: uppercase; }
+.hdr h2 { font-size: 36px; font-weight: 700; letter-spacing: -1px; line-height: 1.1; }
+.hdr .sub { color: var(--t1); font-size: 13px; margin-top: 4px; }
+.hdr-meta { display: flex; align-items: center; gap: 10px; margin-top: 8px; font-size: 11px; color: var(--t2); font-family: var(--m); }
+.hdr-acts { display: flex; gap: 6px; }
+
+.btn { padding: 6px 12px; border-radius: var(--rs); border: 1px solid var(--border); background: var(--bg-2); color: var(--t1); font-size: 11px; font-weight: 500; cursor: pointer; transition: all 0.15s; font-family: var(--f); }
+.btn:hover { background: var(--bg-3); color: var(--t0); }
+.btn-p { background: linear-gradient(135deg, #00c9db, #00e5ff); color: #000; border: none; font-weight: 600; }
+.btn-p:hover { opacity: 0.9; }
+.btn-purple { background: linear-gradient(135deg, #9c7cff, #b388ff); color: #000; border: none; font-weight: 600; }
+
+/* ── Status Cards ── */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; margin-bottom: 28px; }
+.card { background: var(--bg-1); border: 1px solid var(--border-s); border-radius: var(--r); padding: 14px 16px; position: relative; overflow: hidden; }
+.card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+.card.c-c::before { background: linear-gradient(90deg, var(--cyan), transparent); }
+.card.c-g::before { background: linear-gradient(90deg, var(--green), transparent); }
+.card.c-p::before { background: linear-gradient(90deg, var(--purple), transparent); }
+.card.c-o::before { background: linear-gradient(90deg, var(--orange), transparent); }
+.card .ch { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.card .ci { font-size: 11px; color: var(--t2); display: flex; align-items: center; gap: 5px; }
+.card .ct { font-size: 18px; font-weight: 600; }
+.card .cs { font-size: 10px; color: var(--t2); margin-top: 2px; }
+
+/* ── Dual Panel ── */
+.dual { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 28px; }
+.panel { background: var(--bg-1); border: 1px solid var(--border-s); border-radius: var(--r); overflow: hidden; }
+.panel-hdr { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border-s); }
+.panel-title { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.panel-body { padding: 14px 18px; max-height: 420px; overflow-y: auto; }
+.panel-body::-webkit-scrollbar { width: 3px; }
+.panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ── Agent Control Rows ── */
+.agent-ctrl { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border-s); }
+.agent-ctrl:last-child { border-bottom: none; }
+.agent-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+.agent-info { flex: 1; min-width: 0; }
+.agent-name { font-size: 13px; font-weight: 600; }
+.agent-desc { font-size: 11px; color: var(--t2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.agent-stats { display: flex; gap: 12px; font-family: var(--m); font-size: 10px; color: var(--t2); margin-top: 2px; }
+.agent-stats span { color: var(--t1); }
+.agent-badge { font-size: 10px; padding: 2px 8px; border-radius: 4px; font-weight: 500; }
+.badge-online { background: rgba(0,230,118,0.15); color: var(--green); }
+.badge-offline { background: rgba(100,100,120,0.15); color: var(--t2); }
+
+/* ── Chat / Message Area ── */
+.msg-list { display: flex; flex-direction: column; gap: 8px; }
+.msg { padding: 8px 12px; border-radius: var(--rs); font-size: 12px; line-height: 1.5; max-width: 85%; }
+.msg-in { background: var(--bg-3); align-self: flex-start; border: 1px solid var(--border-s); }
+.msg-out { background: var(--gcyan); align-self: flex-end; border: 1px solid rgba(0,229,255,0.2); }
+.msg-meta { font-size: 9px; color: var(--t2); margin-top: 3px; font-family: var(--m); }
+
+/* ── Conversation List ── */
+.conv-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border-s); cursor: pointer; transition: background 0.1s; }
+.conv-item:hover { background: var(--bg-2); margin: 0 -18px; padding: 8px 18px; }
+.conv-avatar { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+.conv-info { flex: 1; min-width: 0; }
+.conv-name { font-size: 12px; font-weight: 500; }
+.conv-preview { font-size: 10px; color: var(--t2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.conv-platform { font-size: 9px; font-family: var(--m); color: var(--t2); padding: 2px 6px; background: var(--bg-3); border-radius: 3px; }
+
+/* ── Event Row ── */
+.ev { display: grid; grid-template-columns: 80px 120px 140px 1fr; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--border-s); font-size: 11px; align-items: center; }
+.ev:last-child { border-bottom: none; }
+.ev-t { color: var(--t2); font-family: var(--m); font-size: 10px; }
+.ev-s { font-weight: 500; }
+.ev-s.hermes { color: var(--green); }
+.ev-s.claude { color: var(--purple); }
+.ev-s.system { color: var(--cyan); }
+.ev-k { color: var(--t1); font-family: var(--m); }
+.ev-d { color: var(--t2); font-family: var(--m); font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Kanban ── */
+.kanban { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.kcol { background: var(--bg-1); border: 1px solid var(--border-s); border-radius: var(--r); padding: 12px; min-height: 200px; }
+.kcol-h { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border-s); }
+.kcol-t { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 6px; }
+.kcol-c { font-size: 10px; font-family: var(--m); color: var(--t2); background: var(--bg-3); padding: 1px 6px; border-radius: 3px; }
+.kcard { background: var(--bg-2); border: 1px solid var(--border-s); border-radius: var(--rs); padding: 10px; margin-bottom: 6px; }
+.kcard .kk { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
+.kcard .kk.hermes { color: var(--green); }
+.kcard .kk.claude { color: var(--purple); }
+.kcard .kk.echo { color: var(--cyan); }
+.kcard .kid { font-size: 10px; font-family: var(--m); color: var(--t1); margin-bottom: 4px; word-break: break-all; }
+.kcard .ka { font-size: 10px; color: var(--t2); }
+.kcard .ktime { font-size: 9px; color: var(--t2); font-family: var(--m); margin-top: 4px; }
+.kempty { color: var(--t2); font-size: 11px; font-style: italic; text-align: center; padding: 16px 0; }
+
+/* ── Input Area ── */
+.input-row { display: flex; gap: 8px; margin-top: 12px; }
+.input-row input, .input-row textarea { flex: 1; padding: 8px 10px; background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--rs); color: var(--t0); font-family: var(--f); font-size: 12px; resize: none; }
+.input-row input:focus, .input-row textarea:focus { outline: none; border-color: var(--cyan); }
+select.sel { padding: 6px 8px; background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--rs); color: var(--t0); font-family: var(--f); font-size: 11px; }
+
+/* ── Section Label ── */
+.slbl { font-size: 10px; font-weight: 600; color: var(--t2); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px; }
+
+/* ── Tabs ── */
+.tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border-s); margin-bottom: 14px; }
+.tab { padding: 6px 14px; font-size: 11px; font-weight: 500; color: var(--t2); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; }
+.tab:hover { color: var(--t1); }
+.tab.active { color: var(--t0); border-bottom-color: var(--cyan); }
+
+/* ── Views ── */
+.view { display: none; }
+.view.active { display: block; }
+
+/* ── Modal ── */
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; display: none; align-items: center; justify-content: center; }
+.modal.show { display: flex; }
+.modal-box { background: var(--bg-1); border: 1px solid var(--border); border-radius: var(--r); padding: 24px; width: 420px; max-width: 90vw; }
+.modal-box h3 { margin-bottom: 14px; font-size: 15px; }
+.modal-box label { font-size: 11px; color: var(--t2); display: block; margin-bottom: 3px; }
+.modal-box .field { margin-bottom: 10px; }
+.modal-box input, .modal-box textarea, .modal-box select { width: 100%; padding: 7px 10px; background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--rs); color: var(--t0); font-family: var(--f); font-size: 12px; }
+.modal-box textarea { font-family: var(--m); resize: vertical; }
+.modal-acts { display: flex; gap: 6px; justify-content: flex-end; margin-top: 14px; }
+
+@media (max-width: 1000px) {
+  .sb { display: none; }
+  .main { margin-left: 0; padding: 16px; }
+  .dual { grid-template-columns: 1fr; }
+  .kanban { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<nav class="sb">
+  <div class="sb-brand">
+    <h1>Local · Studio</h1>
+    <div class="name">Agentic OS</div>
+  </div>
+  <div class="sb-sec">
+    <div class="sb-label">Workspace</div>
+    <div class="sb-item active" onclick="go('overview',this)">⊞ Mission Control</div>
+    <div class="sb-item" onclick="go('hermes',this)">▲ Hermes</div>
+    <div class="sb-item" onclick="go('claude',this)">◆ Claude</div>
+    <div class="sb-item" onclick="go('kanban',this)">▤ Kanban</div>
+    <div class="sb-item" onclick="go('events',this)">⚡ Events</div>
+  </div>
+  <div class="sb-sec">
+    <div class="sb-label">Agents</div>
+    <div id="sb-agents"></div>
+  </div>
+  <div class="sb-foot">mission-control v0.2.0</div>
+</nav>
+
+<div class="main">
+  <div class="hdr">
+    <div class="hdr-top">
+      <div>
+        <div class="hdr-lbl">𝐼. Mission Control</div>
+        <h2>Mission Control</h2>
+        <div class="sub">Hermes + Claude — dual agent control panel.</div>
+      </div>
+      <div class="hdr-acts">
+        <button class="btn" onclick="refreshAll()">↻ Refresh</button>
+        <button class="btn btn-p" onclick="showModal('dispatch')">⚡ Dispatch</button>
+      </div>
+    </div>
+    <div class="hdr-meta"><span id="clock"></span> · LOCAL · STUDIO</div>
+  </div>
+
+  <!-- ═══ OVERVIEW ═══ -->
+  <div id="v-overview" class="view active">
+    <div class="cards" id="status-cards"></div>
+    <div class="dual">
+      <!-- Hermes Panel -->
+      <div class="panel">
+        <div class="panel-hdr">
+          <div class="panel-title"><span class="dot d-green"></span> Hermes</div>
+          <button class="btn" onclick="go('hermes')">Open →</button>
+        </div>
+        <div class="panel-body" id="ov-hermes">
+          <div id="ov-hermes-convs"></div>
+        </div>
+      </div>
+      <!-- Claude Panel -->
+      <div class="panel">
+        <div class="panel-hdr">
+          <div class="panel-title"><span class="dot d-purple"></span> Claude</div>
+          <button class="btn" onclick="go('claude')">Open →</button>
+        </div>
+        <div class="panel-body" id="ov-claude">
+          <div id="ov-claude-tasks"></div>
+        </div>
+      </div>
+    </div>
+    <div class="slbl">Recent Activity</div>
+    <div class="panel"><div class="panel-body" id="ov-events" style="max-height:200px"></div></div>
+  </div>
+
+  <!-- ═══ HERMES ═══ -->
+  <div id="v-hermes" class="view">
+    <div class="tabs">
+      <div class="tab active" onclick="hermesTab('convs',this)">Conversations</div>
+      <div class="tab" onclick="hermesTab('channels',this)">Channels</div>
+      <div class="tab" onclick="hermesTab('perms',this)">Permissions</div>
+    </div>
+    <div id="hermes-convs" class="view active">
+      <div class="input-row" style="margin-top:0;margin-bottom:14px">
+        <select class="sel" id="h-platform" onchange="loadHermes()">
+          <option value="">All platforms</option>
+          <option value="telegram">Telegram</option>
+          <option value="discord">Discord</option>
+          <option value="slack">Slack</option>
+          <option value="whatsapp">WhatsApp</option>
+        </select>
+        <input id="h-search" placeholder="Search conversations..." onkeyup="if(event.key==='Enter')loadHermes()">
+        <button class="btn btn-p" onclick="loadHermes()">Search</button>
+      </div>
+      <div id="hermes-conv-list"></div>
+    </div>
+    <div id="hermes-channels" class="view"><div id="hermes-ch-list"></div></div>
+    <div id="hermes-perms" class="view"><div id="hermes-perm-list"></div></div>
+    <div class="dual" style="margin-top:18px">
+      <div class="panel">
+        <div class="panel-hdr">
+          <div class="panel-title">Send Message</div>
+        </div>
+        <div class="panel-body">
+          <div class="field"><label>Target (platform:id)</label><input id="h-target" placeholder="telegram:6308981865"></div>
+          <div class="field"><label>Message</label><textarea id="h-msg" rows="3" placeholder="Type your message..."></textarea></div>
+          <button class="btn btn-p" onclick="hermesSend()" style="margin-top:6px">Send via Hermes</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-hdr"><div class="panel-title">Hermes Events</div></div>
+        <div class="panel-body" id="hermes-ev-list" style="max-height:250px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ CLAUDE ═══ -->
+  <div id="v-claude" class="view">
+    <div class="dual">
+      <div class="panel">
+        <div class="panel-hdr"><div class="panel-title"><span class="dot d-purple"></span> Generate / Chat</div></div>
+        <div class="panel-body">
+          <div class="msg-list" id="claude-chat"></div>
+          <div class="input-row">
+            <textarea id="c-prompt" rows="2" placeholder="Ask Claude anything..."></textarea>
+            <button class="btn btn-purple" onclick="claudeGenerate()">Send</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-hdr"><div class="panel-title">Configuration</div></div>
+        <div class="panel-body">
+          <div class="field"><label>Model</label>
+            <select class="sel" id="c-model" style="width:100%">
+              <option value="anthropic/claude-sonnet-4-20250514">Claude Sonnet 4</option>
+              <option value="anthropic/claude-haiku-4-5-20251001">Claude Haiku 4.5</option>
+              <option value="anthropic/claude-opus-4-8">Claude Opus 4.8</option>
+              <option value="google/gemini-2.5-flash">Gemini 2.5 Flash</option>
+            </select>
+          </div>
+          <div class="field"><label>API Key (OpenRouter)</label><input id="c-apikey" type="password" placeholder="sk-or-..."></div>
+          <button class="btn btn-purple" onclick="claudeSaveConfig()" style="margin-top:6px">Save Config</button>
+          <div style="margin-top:16px">
+            <div class="slbl">Task History</div>
+            <div id="claude-tasks" style="max-height:200px; overflow-y:auto"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ KANBAN ═══ -->
+  <div id="v-kanban" class="view">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div class="slbl" style="margin:0">Task Board</div>
+      <button class="btn" onclick="refreshAll()">↻ Refresh</button>
+    </div>
+    <div class="kanban" id="kanban-board"></div>
+  </div>
+
+  <!-- ═══ EVENTS ═══ -->
+  <div id="v-events" class="view">
+    <div class="tabs">
+      <div class="tab active" onclick="evFilter('all',this)">All</div>
+      <div class="tab" onclick="evFilter('hermes',this)">Hermes</div>
+      <div class="tab" onclick="evFilter('claude',this)">Claude</div>
+      <div class="tab" onclick="evFilter('orquestador',this)">System</div>
+    </div>
+    <div class="panel"><div class="panel-body" id="ev-full" style="max-height:500px"></div></div>
+  </div>
+</div>
+
+<!-- Dispatch Modal -->
+<div id="modal-dispatch" class="modal">
+  <div class="modal-box">
+    <h3>⚡ Dispatch Task</h3>
+    <div class="field"><label>Agent</label><select id="d-agent"></select></div>
+    <div class="field"><label>Kind</label><input id="d-kind" value="manual"></div>
+    <div class="field"><label>Payload (JSON)</label><textarea id="d-payload" rows="3">{}</textarea></div>
+    <div class="modal-acts">
+      <button class="btn" onclick="hideModal('dispatch')">Cancel</button>
+      <button class="btn btn-p" onclick="dispatch()">Dispatch</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const KCOLS = [
+  {key:'pending',label:'Pending',color:'var(--orange)'},
+  {key:'running',label:'Running',color:'var(--cyan)'},
+  {key:'done',label:'Done',color:'var(--green)'},
+  {key:'failed',label:'Failed',color:'var(--red)'},
+  {key:'timeout',label:'Timeout',color:'var(--t2)'},
+];
+
+let agents=[], tasks=[], events=[], evFilterSrc='all';
+
+// ── Clock ──
+function tick(){const d=new Date();document.getElementById('clock').textContent=
+  String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
+setInterval(tick,1000);tick();
+
+function ts(t){if(!t)return'--';const d=new Date(t*1000);return[d.getHours(),d.getMinutes(),d.getSeconds()].map(v=>String(v).padStart(2,'0')).join(':')}
+
+// ── Fetch ──
+async function F(url){const r=await fetch(url);return r.json()}
+async function P(url,body){const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});return r.json()}
+
+async function refreshAll(){
+  const [st,tk,ev]=await Promise.all([F('/api/state'),F('/api/tasks?limit=100'),F('/api/events?since=0&limit=60')]);
+  agents=st.agents||[];tasks=tk.tasks||[];events=ev.events||[];
+  renderCards(st);renderAgentsSB();renderKanban();renderEvents('ov-events',events,8);
+  renderEvents('ev-full',evFilterSrc==='all'?events:events.filter(e=>e.src.includes(evFilterSrc)),50);
+  renderOverviewPanels();
+}
+
+// ── Status Cards ──
+function renderCards(d){
+  const s=d.system||{},run=tasks.filter(t=>t.status==='running').length,done=tasks.filter(t=>t.status==='done').length;
+  const hermes=agents.find(a=>a.name==='hermes'),claude=agents.find(a=>a.name==='claude');
+  const cs=[
+    {i:'⊞',l:'System',t:s.status==='running'?'Online':'Offline',u:'orquestador v0.2',c:'c'},
+    {i:'▲',l:'Hermes',t:hermes?'Online':'Offline',u:hermes?`${hermes.tasks_done} processed`:'not registered',c:'g'},
+    {i:'◆',l:'Claude',t:claude?'Online':'Offline',u:claude?`${claude.tasks_done} generated`:'not registered',c:'p'},
+    {i:'♦',l:'Running',t:String(run),u:`of ${tasks.length} total`,c:'o'},
+    {i:'✓',l:'Done',t:String(done),u:`${tasks.filter(t=>t.status==='failed').length} failed`,c:'c'},
+    {i:'⚡',l:'Events',t:String(events.length),u:'last hour',c:'c'},
+  ];
+  document.getElementById('status-cards').innerHTML=cs.map(c=>`
+    <div class="card c-${c.c}"><div class="ch"><span class="ci">${c.i} ${c.l}</span><span class="dot d-${c.c==='c'?'cyan':c.c==='g'?'green':c.c==='p'?'purple':'orange'}"></span></div>
+    <div class="ct">${c.t}</div><div class="cs">${c.u}</div></div>`).join('');
+}
+
+// ── Sidebar Agents ──
+function renderAgentsSB(){
+  const colors={hermes:'green',claude:'purple',echo:'cyan'};
+  document.getElementById('sb-agents').innerHTML=agents.map(a=>{
+    const c=colors[a.name]||'cyan';
+    return`<div class="sb-item"><span class="dot d-${a.status==='online'?c:'off'}"></span>${a.name}</div>`;
+  }).join('');
+}
+
+// ── Overview Panels ──
+function renderOverviewPanels(){
+  // Hermes: show recent hermes events
+  const hev=events.filter(e=>e.src.includes('hermes')).slice(0,5);
+  document.getElementById('ov-hermes-convs').innerHTML=hev.length===0
+    ?'<div style="color:var(--t2);font-size:12px;padding:16px 0;text-align:center">No Hermes activity yet.<br>Open Hermes panel to connect.</div>'
+    :hev.map(e=>`<div class="ev"><span class="ev-t">${ts(e.ts)}</span><span class="ev-s hermes">${e.src}</span><span class="ev-k">${e.kind}</span><span class="ev-d">${JSON.stringify(e.data).slice(0,60)}</span></div>`).join('');
+
+  // Claude: show recent claude tasks
+  const ctasks=tasks.filter(t=>t.agent_id==='claude').slice(0,5);
+  document.getElementById('ov-claude-tasks').innerHTML=ctasks.length===0
+    ?'<div style="color:var(--t2);font-size:12px;padding:16px 0;text-align:center">No Claude tasks yet.<br>Open Claude panel to send prompts.</div>'
+    :ctasks.map(t=>`<div class="kcard"><div class="kk claude">${t.kind}</div><div class="kid">${t.id}</div><div class="ka">[${t.status}]</div><div class="ktime">${ts(t.created_at)}</div></div>`).join('');
+}
+
+// ── Events ──
+function renderEvents(id,evs,limit){
+  const el=document.getElementById(id);if(!el)return;
+  const items=evs.slice(0,limit||50);
+  el.innerHTML=items.length===0?'<div class="kempty">No events</div>':items.map(e=>{
+    const cls=e.src.includes('hermes')?'hermes':e.src.includes('claude')?'claude':'system';
+    return`<div class="ev"><span class="ev-t">${ts(e.ts)}</span><span class="ev-s ${cls}">${e.src}</span><span class="ev-k">${e.kind}</span><span class="ev-d">${JSON.stringify(e.data).slice(0,80)}</span></div>`;
+  }).join('');
+}
+
+function evFilter(src,el){
+  evFilterSrc=src;
+  document.querySelectorAll('#v-events .tab').forEach(t=>t.classList.remove('active'));
+  if(el)el.classList.add('active');
+  const filtered=src==='all'?events:events.filter(e=>e.src.includes(src));
+  renderEvents('ev-full',filtered,50);
+}
+
+// ── Kanban ──
+function renderKanban(){
+  document.getElementById('kanban-board').innerHTML=KCOLS.map(col=>{
+    const t=tasks.filter(x=>x.status===col.key);
+    return`<div class="kcol"><div class="kcol-h"><span class="kcol-t"><span class="dot" style="background:${col.color};box-shadow:0 0 6px ${col.color}"></span>${col.label}</span><span class="kcol-c">${t.length}</span></div>
+    ${t.length===0?'<div class="kempty">empty</div>':t.map(x=>{
+      const cls=x.agent_id==='hermes'?'hermes':x.agent_id==='claude'?'claude':'echo';
+      return`<div class="kcard"><div class="kk ${cls}">${x.kind}</div><div class="kid">${x.id}</div><div class="ka">▸ ${x.agent_id}</div><div class="ktime">${ts(x.created_at)}</div></div>`;
+    }).join('')}</div>`;
+  }).join('');
+}
+
+// ── Navigation ──
+function go(name,el){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  const target=document.getElementById('v-'+name);if(target)target.classList.add('active');
+  document.querySelectorAll('.sb-sec:first-of-type .sb-item').forEach(i=>i.classList.remove('active'));
+  if(el)el.classList.add('active');
+  if(name==='hermes')loadHermes();
+  if(name==='claude')loadClaude();
+}
+
+// ── Hermes ──
+function hermesTab(tab,el){
+  ['convs','channels','perms'].forEach(t=>{
+    const v=document.getElementById('hermes-'+t);if(v)v.classList.remove('active');
+  });
+  document.getElementById('hermes-'+tab).classList.add('active');
+  document.querySelectorAll('#v-hermes .tab').forEach(t=>t.classList.remove('active'));
+  if(el)el.classList.add('active');
+}
+
+async function loadHermes(){
+  const platform=document.getElementById('h-platform').value;
+  const search=document.getElementById('h-search').value;
+  let url='/api/hermes/conversations?limit=20';
+  if(platform)url+=`&platform=${platform}`;
+  if(search)url+=`&search=${encodeURIComponent(search)}`;
+  const data=await F(url);
+  const convs=(data.conversations||[]);
+  document.getElementById('hermes-conv-list').innerHTML=convs.length===0
+    ?'<div class="kempty">No conversations found. Connect Hermes to a platform to see messages here.</div>'
+    :convs.map(c=>`<div class="conv-item"><div class="conv-avatar" style="background:var(--ggreen);color:var(--green)">▲</div>
+      <div class="conv-info"><div class="conv-name">${c.display_name||c.session_key}</div><div class="conv-preview">${c.last_message||''}</div></div>
+      <span class="conv-platform">${c.platform||'?'}</span></div>`).join('');
+
+  // Load hermes events
+  const evData=await F('/api/hermes/events?limit=10');
+  const hevents=(evData.events||[]);
+  document.getElementById('hermes-ev-list').innerHTML=hevents.length===0
+    ?'<div class="kempty">No events — waiting for messages</div>'
+    :hevents.map(e=>`<div class="ev"><span class="ev-t">${e.timestamp||''}</span><span class="ev-s hermes">${e.type||''}</span><span class="ev-k">${e.session_key||''}</span><span class="ev-d">${JSON.stringify(e).slice(0,80)}</span></div>`).join('');
+}
+
+async function hermesSend(){
+  const target=document.getElementById('h-target').value;
+  const msg=document.getElementById('h-msg').value;
+  if(!target||!msg)return;
+  await P('/api/hermes/send',{target,message:msg});
+  document.getElementById('h-msg').value='';
+  refreshAll();
+}
+
+// ── Claude ──
+let claudeHistory=[];
+
+async function loadClaude(){
+  const cfg=await F('/api/claude/config');
+  document.getElementById('c-model').value=cfg.model||'anthropic/claude-sonnet-4-20250514';
+  if(cfg.has_api_key)document.getElementById('c-apikey').placeholder='••• key configured •••';
+  renderClaudeHistory();
+}
+
+function renderClaudeHistory(){
+  const ct=tasks.filter(t=>t.agent_id==='claude').slice(0,10);
+  document.getElementById('claude-tasks').innerHTML=ct.length===0
+    ?'<div class="kempty">No tasks yet</div>'
+    :ct.map(t=>`<div class="kcard"><div class="kk claude">${t.kind}</div><div class="kid">${t.id} [${t.status}]</div><div class="ktime">${ts(t.created_at)}</div></div>`).join('');
+}
+
+async function claudeGenerate(){
+  const prompt=document.getElementById('c-prompt').value.trim();
+  if(!prompt)return;
+  claudeHistory.push({role:'user',text:prompt});
+  renderChat();
+  document.getElementById('c-prompt').value='';
+  const res=await P('/api/claude/generate',{prompt});
+  claudeHistory.push({role:'assistant',text:`Task queued: ${res.task_id}`});
+  renderChat();
+  refreshAll();
+}
+
+function renderChat(){
+  document.getElementById('claude-chat').innerHTML=claudeHistory.map(m=>
+    `<div class="msg ${m.role==='user'?'msg-out':'msg-in'}">${m.text}<div class="msg-meta">${m.role}</div></div>`
+  ).join('');
+}
+
+async function claudeSaveConfig(){
+  const model=document.getElementById('c-model').value;
+  const key=document.getElementById('c-apikey').value;
+  await P('/api/claude/config',{model,api_key:key||undefined});
+  document.getElementById('c-apikey').value='';
+  document.getElementById('c-apikey').placeholder='••• key configured •••';
+  refreshAll();
+}
+
+// ── Modal ──
+function showModal(name){
+  const m=document.getElementById('modal-'+name);if(!m)return;
+  if(name==='dispatch'){
+    document.getElementById('d-agent').innerHTML=agents.map(a=>`<option value="${a.name}">${a.name}</option>`).join('');
+  }
+  m.classList.add('show');
+}
+function hideModal(name){document.getElementById('modal-'+name).classList.remove('show')}
+
+async function dispatch(){
+  const agent=document.getElementById('d-agent').value,kind=document.getElementById('d-kind').value;
+  let payload={};try{payload=JSON.parse(document.getElementById('d-payload').value)}catch(e){}
+  await P('/api/tasks',{agent_id:agent,kind,payload});
+  hideModal('dispatch');refreshAll();
+}
+
+// ── Boot ──
+refreshAll();
+setInterval(refreshAll,15000);
+</script>
+</body>
+</html>
