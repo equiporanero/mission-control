@@ -199,6 +199,7 @@ select.sel { padding: 6px 8px; background: var(--bg-2); border: 1px solid var(--
     <div class="sb-item active" onclick="go('overview',this)">⊞ Mission Control</div>
     <div class="sb-item" onclick="go('hermes',this)">▲ Hermes</div>
     <div class="sb-item" onclick="go('claude',this)">◆ Claude</div>
+    <div class="sb-item" onclick="go('mcps',this)">⚙ MCPs</div>
     <div class="sb-item" onclick="go('kanban',this)">▤ Kanban</div>
     <div class="sb-item" onclick="go('events',this)">⚡ Events</div>
   </div>
@@ -327,6 +328,24 @@ select.sel { padding: 6px 8px; background: var(--bg-2); border: 1px solid var(--
           </div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ═══ MCPs ═══ -->
+  <div id="v-mcps" class="view">
+    <div class="tabs">
+      <div class="tab active" onclick="mcpTab('browse',this)">Browse Catalogue</div>
+      <div class="tab" onclick="mcpTab('installed',this)">Installed (0)</div>
+    </div>
+    <div id="mcps-browse" class="view active">
+      <div class="input-row" style="margin-top:0;margin-bottom:14px">
+        <input id="mcp-search" placeholder="Search MCP catalogue..." onkeyup="if(event.key==='Enter')loadMCPs()">
+        <button class="btn btn-p" onclick="loadMCPs()">Search</button>
+      </div>
+      <div class="kanban" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px" id="mcp-catalogue"></div>
+    </div>
+    <div id="mcps-installed" class="view">
+      <div id="mcp-installed-list"></div>
     </div>
   </div>
 
@@ -474,6 +493,7 @@ function go(name,el){
   if(el)el.classList.add('active');
   if(name==='hermes')loadHermes();
   if(name==='claude')loadClaude();
+  if(name==='mcps')loadMCPs();
 }
 
 // ── Hermes ──
@@ -576,6 +596,82 @@ async function dispatch(){
   let payload={};try{payload=JSON.parse(document.getElementById('d-payload').value)}catch(e){}
   await P('/api/tasks',{agent_id:agent,kind,payload});
   hideModal('dispatch');refreshAll();
+}
+
+// ── MCP Management ──
+async function loadMCPs(){
+  const query=document.getElementById('mcp-search').value;
+  const data=await F(`/api/mcp/catalogue${query?'?query='+encodeURIComponent(query):''}`);
+  const results=data.results||[];
+  document.getElementById('mcp-catalogue').innerHTML=results.length===0
+    ?'<div class="kempty">No MCPs found</div>'
+    :results.map(m=>`<div class="kcard" style="padding:14px">
+      <div class="kk" style="color:${m.auth_required?'var(--orange)':'var(--green)'}">${m.name.toUpperCase()}</div>
+      <div class="agent-name">${m.name}</div>
+      <div class="agent-desc">${m.description}</div>
+      <div class="agent-stats" style="margin-top:8px"><span>${m.protocol}</span> · <span>${m.capabilities.join(', ')}</span></div>
+      <div style="margin-top:10px;display:flex;gap:6px">
+        <button class="btn btn-p" style="flex:1;font-size:10px" onclick="mcpInstall('${m.name}')">Install</button>
+        ${m.auth_required?`<button class="btn" style="font-size:10px;color:var(--orange)" onclick="startMCPAuth('${m.name}')">Auth</button>`:''}
+      </div></div>`).join('');
+  loadMCPInstalled();
+}
+
+function mcpTab(tab,el){
+  ['browse','installed'].forEach(t=>{
+    const v=document.getElementById('mcps-'+t);if(v)v.classList.remove('active');
+  });
+  document.getElementById('mcps-'+tab).classList.add('active');
+  document.querySelectorAll('#v-mcps .tab').forEach(t=>t.classList.remove('active'));
+  if(el)el.classList.add('active');
+}
+
+async function mcpInstall(name){
+  const res=await P('/api/mcp/install',{name});
+  if(res.error){alert('Error: '+res.error);return}
+  alert('Installing '+name+'...');
+  loadMCPs();
+}
+
+async function mcpUninstall(name){
+  if(!confirm('Uninstall '+name+'?'))return;
+  const res=await P('/api/mcp/uninstall',{name});
+  if(res.error){alert('Error: '+res.error);return}
+  loadMCPs();
+}
+
+async function mcpToggle(name,enabled){
+  await P('/api/mcp/toggle',{name,enabled});
+  loadMCPInstalled();
+}
+
+async function startMCPAuth(name){
+  const res=await P('/api/mcp/auth',{name,action:'start'});
+  if(res.error){alert('Error: '+res.error);return}
+  alert('Auth flow started for '+name);
+}
+
+async function loadMCPInstalled(){
+  const data=await F('/api/mcp/installed');
+  const installed=data.installed||[];
+  document.querySelectorAll('#v-mcps .tab')[1].textContent='Installed ('+installed.length+')';
+  document.getElementById('mcp-installed-list').innerHTML=installed.length===0
+    ?'<div class="kempty">No MCPs installed yet. Browse and install from the catalogue.</div>'
+    :installed.map(m=>`<div class="agent-ctrl">
+      <div class="agent-icon" style="background:var(--gpurple);color:var(--purple)">${m.protocol[0].toUpperCase()}</div>
+      <div class="agent-info">
+        <div class="agent-name">${m.name}</div>
+        <div class="agent-desc">${m.description}</div>
+        <div class="agent-stats"><span>${m.version}</span></div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+          <input type="checkbox" ${m.enabled?'checked':''} onchange="mcpToggle('${m.name}',this.checked)">
+          <span style="font-size:11px;color:var(--t2)">Active</span>
+        </label>
+        <button class="btn" style="font-size:10px;padding:3px 8px" onclick="mcpUninstall('${m.name}')">Uninstall</button>
+      </div>
+    </div>`).join('');
 }
 
 // ── Boot ──

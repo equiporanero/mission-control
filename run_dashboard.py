@@ -7,4 +7,4 @@ os.chdir(script_dir)
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("dashboard.api:app", host="127.0.0.1", port=8550)
+    uvicorn.run("dashboard.api:app", host="127.0.0.1", port=8560)

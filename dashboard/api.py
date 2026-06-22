@@ -18,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from config.settings import DB_PATH, AGENTS_DIR, DASHBOARD_HOST, DASHBOARD_PORT
 from core.memory import Memory
 from core.registry import Registry
+from core.mcp_manager import MCPManager
 
 app = FastAPI(title="Mission Control")
 memory = Memory(DB_PATH)
@@ -206,6 +207,65 @@ async def claude_config_update(request: Request):
         memory.put("__secrets__", "openrouter_api_key", body["api_key"])
     memory.emit("dashboard", "claude_config_updated", {"model": body.get("model", "unchanged")})
     return {"status": "updated"}
+
+
+# ── MCP Management (via Hermes) ──
+
+mcp_mgr = MCPManager()
+
+
+@app.get("/api/mcp/catalogue")
+async def mcp_browse(query: str = ""):
+    results = mcp_mgr.browse_catalogue(query)
+    memory.emit("hermes", "mcp_browse", {"query": query, "count": len(results)})
+    return {"results": results}
+
+
+@app.get("/api/mcp/installed")
+async def mcp_list():
+    installed = mcp_mgr.list_installed()
+    return {"installed": installed}
+
+
+@app.post("/api/mcp/install")
+async def mcp_install(request: Request):
+    body = await request.json()
+    result = mcp_mgr.install(body["name"])
+    memory.emit("hermes", "mcp_installed", {"name": body["name"], "success": "error" not in result})
+    return result
+
+
+@app.post("/api/mcp/uninstall")
+async def mcp_uninstall(request: Request):
+    body = await request.json()
+    result = mcp_mgr.uninstall(body["name"])
+    memory.emit("hermes", "mcp_uninstalled", {"name": body["name"], "success": "error" not in result})
+    return result
+
+
+@app.post("/api/mcp/toggle")
+async def mcp_toggle(request: Request):
+    body = await request.json()
+    result = mcp_mgr.toggle(body["name"], body.get("enabled", True))
+    memory.emit("hermes", "mcp_toggled", {"name": body["name"], "enabled": body.get("enabled")})
+    return result
+
+
+@app.post("/api/mcp/auth")
+async def mcp_auth(request: Request):
+    body = await request.json()
+    name = body["name"]
+    action = body.get("action", "check")
+    if action == "check":
+        result = mcp_mgr.auth_status(name)
+    elif action == "start":
+        result = mcp_mgr.start_auth(name)
+    elif action == "complete":
+        result = mcp_mgr.complete_auth(name, body.get("token", ""))
+    else:
+        result = {"error": f"unknown action: {action}"}
+    memory.emit("hermes", "mcp_auth", {"name": name, "action": action})
+    return result
 
 
 # ── SSE Stream ──
